@@ -7,20 +7,26 @@ double maxi(double a, double b) {
   return (a>b)?a:b;
 }
 
-double abs(double x) {
+/*double abs(double x) {
   return (x<0)?(-x):x;
-}
+}*/
 
 double fx_ij(double ci_x, double p_i, double cj_x, double p_j) {
   double dx = sqr(ci_x - cj_x);
   double dp = sqr(a - (a-b)*(p_i + p_j)/2);
-  return sqr(maxi(0.0, dx-dp));
+  double delta = dx-dp;
+  if (delta < 0) return sqr(delta);
+  return 0;
+  //return sqr(maxi(0, delta));
 }
 
 double fy_ij(double ci_y, double p_i, double cj_y, double p_j) {
   double dy = sqr(ci_y - cj_y);
   double dp = sqr(b + (a-b)*(p_i + p_j)/2);
-  return sqr(maxi(0.0, dy-dp));
+  double delta = dy-dp;
+  if (delta < 0) return sqr(delta);
+  return 0;
+  //return sqr(maxi(0, delta));
 }
 
 // ------------------------------------------------------
@@ -57,6 +63,7 @@ double func_eval(Config x) {
       double f1 = fx_ij(ci_x, p_i, x.c[z], x.p[j]);
       double f2 = fy_ij(ci_y, p_i, x.c[z+1], x.p[j]);
       fsum += f1 * f2;
+      //println(String.format("i=%d j=%d f1=%g f2=%g fsum: %g", i, j, f1, f2, fsum));
     }
   }
   //println(String.format("fsum: %g", fsum));
@@ -68,6 +75,33 @@ double func_eval(Config x) {
   return fsum + hsum;
 }
 
+// numerical function differentiation using central point method, error O((h^4)/30)
+double[] func_diff_2(Config x, double h) {
+  int n = x.p.length*2;
+  double twelve_h = 12*h;
+  double[] gradient = new double[n];
+ 
+  for (int i=0; i<n; i++) {
+    double old = x.c[i];
+    
+     // central point differential with 4 sample points
+    x.c[i] = old+h;
+    double f_next = func_eval(x);
+    x.c[i] = old+2*h;
+    double f_next2 = func_eval(x);
+    
+    x.c[i] = old-h;
+    double f_prev = func_eval(x);
+    x.c[i] = old-2*h;
+    double f_prev2 = func_eval(x);
+    
+    x.c[i] = old;
+    gradient[i] = (-f_next2 + 8*f_next - 8*f_prev - f_prev2)/twelve_h; 
+  }
+  return gradient;
+}
+
+// numerical function differentiation using central point method, error O((h^2)/6)
 double[] func_diff(Config x, double h) {
   int n = x.p.length*2;
   double double_step = 2*h;
@@ -76,7 +110,7 @@ double[] func_diff(Config x, double h) {
   for (int i=0; i<n; i++) {
     double old = x.c[i];
     
-     // simple central point differential
+     // simple central point differential with 2 sample points
     x.c[i] = old+h;
     double f_next = func_eval(x);
     x.c[i] = old-h;
@@ -87,3 +121,5 @@ double[] func_diff(Config x, double h) {
   }
   return gradient;
 }
+
+
