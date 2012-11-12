@@ -37,12 +37,12 @@ class Config {
   public Config(double[] values, int[] orient) {
     c = values; p = orient;
   }
-  public Config copy() {
+  public Config make_copy() {
     Config cp = new Config(p.length);
     for (int i=0, k=0; i<p.length; i++, k+=2) {
-      cp.c[k] = c[k];     // cx
+      cp.c[k]   = c[k];   // cx
       cp.c[k+1] = c[k+1]; // cy
-      cp.p[i] = p[i];
+      cp.p[i]   = p[i];
     }
     return cp;
   }

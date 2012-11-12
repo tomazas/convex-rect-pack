@@ -1,24 +1,37 @@
 
-Container c = null;
-int a = 40;
-int b = 20;
-int maxN = 0;
+class Stat {
+  float sum = 0;
+  int n = 0;
+  
+  void reset(){ sum = 0; n = 0; }
+  void put(float value) { sum += value; n++;}
+  float avrg(){ return (n>0)?(sum/n):0; }
+}
+
+final Stat stats = new Stat();
+final Container c = new Container();
+final int a = 40;
+final int b = 20;
 final int maxNoImp = 100;
+Config state = null;
+final int numRects = 50;
+
 
 // ------------------------------------------------------
 // generate randomly placed boxes inside the non-convex area
-Config ranGen(int N) {
-  Config conf = new Config(N);
+Config ranGen(int total) {
+  Config conf = new Config(total);
   Random r = new Random();
-  for (int i=0, k=0; i<N; i++, k+=2) {
+  int num_horiz = r.nextInt(total);
+  for (int i=0, k=0; i<total; i++, k+=2) {
     int cx, cy;
     do {
-      // check if valid
+      // check if point inside area
       cx = c.xmin + r.nextInt(c.xmax-c.xmin);
       cy = c.ymin + r.nextInt(c.ymax-c.ymin);
     } while(!c.inside(cx, cy));
     // create the box
-    conf.p[i] = r.nextBoolean() ? 0 : 1;
+    conf.p[i] = (i < num_horiz) ? 0 : 1;
     conf.c[k] = cx;
     conf.c[k+1] = cy;
   }
@@ -28,54 +41,112 @@ Config ranGen(int N) {
 // ------------------------------------------------------
 // runs an optimization algorithm BFGS to minimize area function
 void refine(Config y) {
-  (new BfgsSolver()).minimize_cont(y);
+  
+  (new BfgsSolver()).minimize(y);
+  
+  // try to swap every rect orientation & check if it's giving a better result
+ /* Config temp = y;
+  Config old_temp = null;
+  double Z = func_eval(temp);
+  boolean improved = true;
+  
+ // while (improved) {
+ //   improved = false;
+    
+    for (int i=0; i<temp.p.length; i++) {
+      old_temp = temp.make_copy();
+      temp.p[i] = 1-temp.p[i];
+
+      (new BfgsSolver()).minimize(temp);
+      double newZ = func_eval(temp);
+      
+      if (newZ < Z) {
+        //println(String.format("refine z: %g < %g - GOOD", newZ, oldZ));
+        Z = newZ;
+        improved = true;
+      } else {
+        // println(String.format("refine z: %g < %g - BAD", newZ, oldZ));
+        temp = old_temp; // reset
+      }
+    }
+ // }
+  
+  y.c = temp.c;
+  y.p = temp.p;*/
 }
+
+/*
+// ------------------------------------------------------
+// runs an optimization algorithm BFGS to minimize area function
+void refine(Config y) {
+  
+  (new BfgsSolver()).minimize(y);
+  
+  // try to swap every rect orientation & check if it's better
+  double oldZ = func_eval(y);
+  boolean improved = true;
+  
+  while(improved) {
+    improved = false;  
+    
+    for (int i=0; i<y.p.length; i++) {
+      int old_p = y.p[i];
+      y.p[i] = 1-old_p;
+      
+      double newZ = func_eval(y);
+      if (newZ < oldZ) {
+        oldZ = newZ;
+        improved = true;
+      } else {
+        y.p[i] = old_p;
+      }
+    }
+  }
+}
+*/
 
 // ------------------------------------------------------
 Config perturb(Config x) {
-  Config newX = x.copy();
-  cont2(newX, 0.2 * sqrt(a*a+b*b));
-  //cont1(newX); // TODO: apply other techniques???
+  // TODO: use other techniques
+  Config newX = x.make_copy();
+  cont1(newX);//cont2(newX, 0.2 * sqrt(a*a+b*b));
+  comb2(newX, 0.15);
   return newX;
 }
 
 // ------------------------------------------------------
 Config solve(Config Xk) {
   println("solve invoked");
-  
   refine(Xk);
-  Config Xprev = Xk;
-  int k = 1;     // current step index
+  
+  int step = 1;  // current step index
   int noImp = 0; // number of iterations with no improvement
+  Config Xprev = null;
+  double Z = func_eval(Xk);
   
   do {
-    println("solve iteration: " + k);
+    Xprev = Xk;
+   
     Config Zk = perturb(Xk);
-    println("perturb done");
     refine(Zk);
-    println("refine done");
     
     double newZ = func_eval(Zk);
-    double prevZ = func_eval(Xk);
-    println(String.format("newZ: %g prevZ: %g", newZ, prevZ));
-    
-    if (newZ < prevZ) {
-      Xprev = Xk;
+    if (newZ < Z) {
+      println(String.format("Iteration: %d > newZ: %g prevZ: %g - improved", step, newZ, Z));
       Xk = Zk;
+      Z = newZ;
       noImp = 0;
-      println("improved");
     } else {
-      Xk = Xprev;
       noImp = noImp+1;
-      println("no improvement");
+      println(String.format("Iteration: %d > newZ: %g prevZ: %g - no improvement, iters = %d", step, newZ, Z, noImp));
     }
 
-    if (prevZ <= 0.001) {
-       println("reached prevZ <= 0.001");
-       break;
+    if (Z <= 0.001) {
+      println("reached newZ <= 0.001");
+      break;
     }
     
-    k = k+1;
+    step = step+1;
   } while(noImp <= maxNoImp);
   
   println("solve loop exited");
@@ -83,21 +154,16 @@ Config solve(Config Xk) {
   return Xk;
 }
 
-Config state = null;
-
 void setup(){
   size(640, 480);
   noFill();
   stroke(255,0,0);
   
-  c = new Container();
   c.load("data.txt");
   int area = c.area();
-  maxN = floor(area/(a*b));
-  println(String.format("area: %d, upper N bound: %d", area, maxN));
+  println(String.format("area: %d, upper N bound: %d", area, floor(area/(a*b))));
   
-  state = ranGen(75);
-  //state = solve(state);
+  state = ranGen(numRects);
 }
 
 void draw() {
@@ -117,11 +183,20 @@ void draw() {
     }
   }
   
-  // container bounding box
+  // draw container bounding box
   stroke(255,0,0);
   rect(width-2*a, 2*b, a, b);
 }
 
 void mousePressed() {
-  state = solve(state);
+  // add interactivity
+  if (mouseButton == RIGHT) {
+    long t0 = System.nanoTime();
+    state = solve(state);
+    float seconds = (System.nanoTime() - t0) * 1e-9f;
+    stats.put(seconds);
+    println("elapsed time: "+seconds + " seconds, average: " + stats.avrg() + " for " + stats.n + " tests");
+  } else if (mouseButton == LEFT) {
+    state = ranGen(numRects);
+  }
 }
