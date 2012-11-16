@@ -1,14 +1,14 @@
 
 class Segment {
- int x0, y0, x1, y1;
- double A, B, C;
+ float x0, y0, x1, y1;
+ float A, B, C, nx, ny, d;
   
- public Segment(int[] v, int cx, int cy){
+ public Segment(float[] v, float cx, float cy){
    x0 = v[0]; y0 = v[1]; x1 = v[2]; y1 = v[3];
    
-   int nx = y1-y0;
-   int ny = x0-x1;
-   double f = sqrt(nx*nx + ny*ny);
+   nx = y1-y0;
+   ny = x0-x1;
+   float f = sqrt(nx*nx + ny*ny);
    A = nx/f;
    B = ny/f;
    C = -A*x0-B*y0;
@@ -19,10 +19,27 @@ class Segment {
    } else {
      println(String.format("no swap, now A: %g B: %g C: %g", A, B, C));
    }
+   
+   nx = x1-x0;
+   ny = y1-y0;
+   d = sqrt(sqr(nx) + sqr(ny));
+   nx /= d;
+   ny /= d;
  }
  
- double fdist(double x, double y) {
+ float fdist(float x, float y) {
    return A*x+B*y+C;
+ }
+ 
+ float pdist(float x, float y) {
+   float dx = x-x0;
+   float dy = y-y0;
+   float t = dx*nx + dy*ny;
+   if (t < 0) return sqrt(sqr(dx) + sqr(dy));
+   else if (t > d) return sqrt(sqr(x-x1) + sqr(y-y1));
+   float px = x0 + nx*t;
+   float py = y0 + ny*t;
+   return sqrt(sqr(x-px) + sqr(y-py));
  }
 }
 
@@ -51,69 +68,90 @@ class Config {
 class Container {
   
   List<Segment> segments = null;
-  int xmin = 999999, xmax = -999999, 
+  float xmin = 999999, xmax = -999999, 
       ymin = 999999, ymax = -999999;
-  double containerArea = 0;
+  float containerArea = 0;
+  float[] X, Y;
+  float center_x = 0, center_y = 0;
   
   void load(String filename) {
     segments = new ArrayList<Segment>();
     String lines[] = loadStrings(filename);
-    int X[] = new int[lines.length-1];
-    int Y[] = new int[lines.length-1];
-    int center_x = 0, center_y = 0;
-    
+    X = new float[lines.length-1];
+    Y = new float[lines.length-1];
+
     for (int i=0; i < lines.length; i++) {
       String[] seg = lines[i].split(" ");
       
       if (i == 0) {
         // first point is an inside point of the container
-        center_x = Integer.parseInt(seg[0]);
-        center_y = Integer.parseInt(seg[1]);
-        println(String.format("inside point: %d %d", center_x, center_y));
+        center_x = Float.parseFloat(seg[0]);
+        center_y = Float.parseFloat(seg[1]);
+        println(String.format("inside point: %g %g", center_x, center_y));
         continue;
       }
       
       int index = i-1;
-      X[index] = Integer.parseInt(seg[0]);
-      Y[index] = Integer.parseInt(seg[1]);
+      X[index] = Float.parseFloat(seg[0]);
+      Y[index] = Float.parseFloat(seg[1]);
       xmin = min(X[index], xmin);
       xmax = max(X[index], xmax);
       ymin = min(Y[index], ymin);
       ymax = max(Y[index], ymax);
       if (index > 0) {    
-        segments.add(new Segment(new int[]{X[index-1], Y[index-1], X[index], Y[index]}, center_x, center_y));
+        segments.add(new Segment(new float[]{X[index-1], Y[index-1], X[index], Y[index]}, center_x, center_y));
       }
     }
-    containerArea = polygonArea(X, Y, X.length);
+    containerArea = polygonArea(X, Y);
     println(String.format("%d lines loaded, segments: %d, ccontainer_area: %g", lines.length, segments.size(), containerArea));
-    println(String.format("bounds(xmin ymin xmax ymax): %d %d %d %d", xmin, ymin, xmax, ymax));
+    println(String.format("bounds(xmin ymin xmax ymax): %g %g %g %g", xmin, ymin, xmax, ymax));
   }
   
-  boolean inside(double x, double y) {
-    //TODO: reimplement
-    for (int i=0; i<segments.size(); i++) {
-      if (segments.get(i).fdist(x,y) > 0) {
-        return false;
-      }
-    }
-    return true;
+  boolean inside(float x, float y) {
+    return pointInPolygon(X, Y, x, y);
   }
   
   // evaluate all constraints for given point
-  double gk(double[] pts) {
+  /*float gk(float[] pts) {
     //TODO: reimplement
-    double gsum = 0;
+    float gsum = 0;
     for (int i=0; i<segments.size(); i++) {
       Segment s = segments.get(i);
       for (int k=0; k<8; k+=2) {
-          double gval = s.fdist(pts[k], pts[k+1]);
+          float gval = s.fdist((float)pts[k], (float)pts[k+1]);
           gsum += sqr(maxi(0.0, gval));
       }
     }
     return gsum;
+  }*/
+  
+  /*float gk(float[] pts) {
+    float gsum = 0;
+    for (int k=0; k<8; k+=2) {
+          gsum += c.inside((float)pts[k], (float)pts[k+1]) ? 0 : 1;
+    }
+    return gsum;
+  }*/
+  
+  float gk(float[] pts) {
+    float gsum = 0;
+    for (int k=0; k<8; k+=2) {
+      float x = (float)pts[k];
+      float y = (float)pts[k+1];
+      if (c.inside(x,y)) continue; // "inside" is good
+      
+      // find the minimum distance to be "inside"  
+      float pmin = 999999;
+      for (int i=0; i<segments.size(); i++) {
+        float d = segments.get(i).pdist(x,y);
+        pmin = mini(pmin, d);
+      }
+      gsum += sqr(pmin);//sqr(maxi(0.0, pmin));
+    }
+    return gsum;
   }
   
-  double area() {
+  float area() {
     return containerArea;
   }
   
@@ -128,14 +166,34 @@ class Container {
     rect(xmin-5, ymin-5, xmax-xmin+10, ymax-ymin+10);
   }
   
-  private double polygonArea(int[] X, int[] Y, int numPoints) { 
-    double sum = 0;
-    int j = numPoints-1;
+  // implementation: http://www.mathopenref.com/coordpolygonarea2.html
+  private float polygonArea(float[] pX, float[] pY) { 
+    float sum = 0;
+    int j = pX.length-1;
 
-    for (int i=0; i<numPoints; i++) { 
-      sum += (X[j]+X[i]) * (Y[j]-Y[i]); 
+    for (int i=0; i<pX.length; i++) { 
+      sum += (pX[j]+pX[i]) * (pY[j]-pY[i]); 
       j = i;  //j is previous vertex to i
     }
     return Math.abs(sum*0.5);
+  }
+
+  // implementation: http://alienryderflex.com/polygon/
+  boolean pointInPolygon(float[] pX, float[] pY, float x, float y) {
+
+    int      j = pX.length-1;
+    boolean  oddNodes = false;
+    
+    //TODO: the denominator - (pY[j]-pY[i])*(pX[j]-pX[i]) can be precalculated in advance (static container)
+    //though it's only used in loading, so not much of a algorithm affector
+
+    for (int i=0; i<pX.length; i++) {
+      if ((pY[i] < y && pY[j] >= y || pY[j] < y && pY[i] >= y) &&  (pX[i] <= x || pX[j] <= x)) {
+        oddNodes ^= (pX[i]+(y-pY[i])/(pY[j]-pY[i])*(pX[j]-pX[i]) < x); 
+      }
+      j = i; 
+    }
+
+    return oddNodes; 
   }
 }
