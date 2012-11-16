@@ -10,7 +10,7 @@ class Stat {
 
 final Stat stats = new Stat();
 final Container c = new Container();
-final int a = 40;
+final int a = 20;
 final int b = 20;
 final int maxNoImp = 100;
 Config state = null;
@@ -18,17 +18,17 @@ final int numRects = 50;
 
 
 // ------------------------------------------------------
-// generate randomly placed boxes inside the non-convex area
+// generate randomly placed boxes inside the container area
 Config ranGen(int total) {
   Config conf = new Config(total);
   Random r = new Random();
   int num_horiz = r.nextInt(total);
   for (int i=0, k=0; i<total; i++, k+=2) {
-    int cx, cy;
+    float cx, cy;
     do {
       // check if point inside area
-      cx = c.xmin + r.nextInt(c.xmax-c.xmin);
-      cy = c.ymin + r.nextInt(c.ymax-c.ymin);
+      cx = c.xmin + (float)r.nextDouble() * (c.xmax-c.xmin);
+      cy = c.ymin + (float)r.nextDouble() * (c.ymax-c.ymin);
     } while(!c.inside(cx, cy));
     // create the box
     conf.p[i] = (i < num_horiz) ? 0 : 1;
@@ -159,9 +159,9 @@ void setup(){
   noFill();
   stroke(255,0,0);
   
-  c.load("data.txt");
-  int area = c.area();
-  println(String.format("area: %d, upper N bound: %d", area, floor(area/(a*b))));
+  c.load("data/data.txt");
+  float area = c.area();
+  println(String.format("area: %g, upper N bound: %d", area, (int)Math.floor(area/(a*b))));
   
   state = ranGen(numRects);
 }
@@ -199,4 +199,9 @@ void mousePressed() {
   } else if (mouseButton == LEFT) {
     state = ranGen(numRects);
   }
+}
+
+void mouseMoved() {
+  //Segment s = new Segment(new float[]{100,100,300,100}, 200,200);
+ // println(s.pdist(mouseX, mouseY));
 }

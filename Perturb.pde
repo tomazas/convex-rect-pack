@@ -50,7 +50,7 @@ void comb2(Config x, float eta) {
 void cont1(Config x) {
   Random r = new Random();
   int idx = r.nextInt(x.p.length);
-  double alpha_x = c.xmin + r.nextInt(c.xmax-c.xmin);
+  float alpha_x = c.xmin + (float)r.nextDouble() * (c.xmax-c.xmin);
   x.c[idx*2] = alpha_x; // change cx
 }
 

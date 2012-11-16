@@ -1,46 +1,50 @@
 
-double sqr(double x) {
+float sqr(float x) {
   return x*x;
 }
 
-double maxi(double a, double b) {
+float maxi(float a, float b) {
   return (a>b)?a:b;
+}
+
+float mini(float a, float b) {
+  return (a>b)?b:a;
 }
 
 /*double abs(double x) {
   return (x<0)?(-x):x;
 }*/
 
-double fx_ij(double ci_x, double p_i, double cj_x, double p_j) {
-  double dx = sqr(ci_x - cj_x);
-  double dp = sqr(a - (a-b)*(p_i + p_j)/2);
-  double delta = dx-dp;
+float fx_ij(float ci_x, float p_i, float cj_x, float p_j) {
+  float dx = sqr(ci_x - cj_x);
+  float dp = sqr(a - (a-b)*(p_i + p_j)/2);
+  float delta = dx-dp;
   if (delta < 0) return sqr(delta);
   return 0;
   //return sqr(maxi(0, delta));
 }
 
-double fy_ij(double ci_y, double p_i, double cj_y, double p_j) {
-  double dy = sqr(ci_y - cj_y);
-  double dp = sqr(b + (a-b)*(p_i + p_j)/2);
-  double delta = dy-dp;
+float fy_ij(float ci_y, float p_i, float cj_y, float p_j) {
+  float dy = sqr(ci_y - cj_y);
+  float dp = sqr(b + (a-b)*(p_i + p_j)/2);
+  float delta = dy-dp;
   if (delta < 0) return sqr(delta);
   return 0;
   //return sqr(maxi(0, delta));
 }
 
 // ------------------------------------------------------
-double h_i(double cx, double cy, int p) {
+float h_i(float cx, float cy, int p) {
   
-  double half_a = a/2;
-  double half_b = b/2;
+  float half_a = a/2;
+  float half_b = b/2;
   int p_inv = 1-p;
-  double b_inv = half_b*p_inv;
-  double a_inv = half_a*p_inv;
-  double bp = half_b*p;
-  double ap = half_a*p;
+  float b_inv = half_b*p_inv;
+  float a_inv = half_a*p_inv;
+  float bp = half_b*p;
+  float ap = half_a*p;
   
-   double[] pts = new double[] {
+   float[] pts = new float[] {
       cx - a_inv - bp, cy - b_inv - ap,
       cx + a_inv + bp, cy - b_inv - ap,
       cx - a_inv - bp, cy + b_inv + ap,
@@ -52,24 +56,24 @@ double h_i(double cx, double cy, int p) {
 
 // ------------------------------------------------------
 // computes Fn for minimization from current rectangle configuration
-double func_eval(Config x) {
-  double fsum = 0;
+float func_eval(Config x) {
+  float fsum = 0;
   for(int i=0, k=0; i<x.p.length; i++, k+=2) {
-    double ci_x = x.c[k];
-    double ci_y = x.c[k+1];
-    double p_i  = x.p[i];
+    float ci_x = (float)x.c[k];
+    float ci_y = (float)x.c[k+1];
+    float p_i  = (float)x.p[i];
     
     for(int j=i+1, z=k+2; j<x.p.length; j++, z+=2) {
-      double f1 = fx_ij(ci_x, p_i, x.c[z], x.p[j]);
-      double f2 = fy_ij(ci_y, p_i, x.c[z+1], x.p[j]);
+      float f1 = fx_ij(ci_x, p_i, (float)x.c[z], (float)x.p[j]);
+      float f2 = fy_ij(ci_y, p_i, (float)x.c[z+1], (float)x.p[j]);
       fsum += f1 * f2;
       //println(String.format("i=%d j=%d f1=%g f2=%g fsum: %g", i, j, f1, f2, fsum));
     }
   }
   //println(String.format("fsum: %g", fsum));
-  double hsum = 0;
+  float hsum = 0;
   for(int i=0, k=0; i<x.p.length; i++, k+=2) {
-    hsum += h_i(x.c[k], x.c[k+1], x.p[i]);
+    hsum += h_i((float)x.c[k], (float)x.c[k+1], x.p[i]);
   }
   //println(String.format("hsum: %g", hsum));
   return fsum + hsum;
