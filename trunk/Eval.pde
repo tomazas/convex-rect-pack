@@ -57,7 +57,7 @@ float h_i(float cx, float cy, int p) {
 // ------------------------------------------------------
 // computes Fn for minimization from current rectangle configuration
 float func_eval(Config x) {
-  float fsum = 0;
+  float fsum = 0, hsum = 0;
   for(int i=0, k=0; i<x.p.length; i++, k+=2) {
     float ci_x = (float)x.c[k];
     float ci_y = (float)x.c[k+1];
@@ -69,18 +69,14 @@ float func_eval(Config x) {
       fsum += f1 * f2;
       //println(String.format("i=%d j=%d f1=%g f2=%g fsum: %g", i, j, f1, f2, fsum));
     }
-  }
-  //println(String.format("fsum: %g", fsum));
-  float hsum = 0;
-  for(int i=0, k=0; i<x.p.length; i++, k+=2) {
+    
     hsum += h_i((float)x.c[k], (float)x.c[k+1], x.p[i]);
   }
-  //println(String.format("hsum: %g", hsum));
   return fsum + hsum;
 }
 
 // numerical function differentiation using central point method, error O((h^4)/30)
-double[] func_diff_2(Config x, double h) {
+/*double[] func_diff_2(Config x, double h) {
   int n = x.p.length*2;
   double twelve_h = 12*h;
   double[] gradient = new double[n];
@@ -103,7 +99,7 @@ double[] func_diff_2(Config x, double h) {
     gradient[i] = (-f_next2 + 8*f_next - 8*f_prev - f_prev2)/twelve_h; 
   }
   return gradient;
-}
+}*/
 
 // numerical function differentiation using central point method, error O((h^2)/6)
 double[] func_diff(Config x, double h) {
