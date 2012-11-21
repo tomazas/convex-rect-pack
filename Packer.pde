@@ -39,75 +39,15 @@ Config ranGen(int total) {
 }
 
 // ------------------------------------------------------
+BfgsSolver bfgs = new BfgsSolver();
+
 // runs an optimization algorithm BFGS to minimize area function
 void refine(Config y) {
-  
-  (new BfgsSolver()).minimize(y);
-  
-  // try to swap every rect orientation & check if it's giving a better result
- /* Config temp = y;
-  Config old_temp = null;
-  double Z = func_eval(temp);
-  boolean improved = true;
-  
- // while (improved) {
- //   improved = false;
-    
-    for (int i=0; i<temp.p.length; i++) {
-      old_temp = temp.make_copy();
-      temp.p[i] = 1-temp.p[i];
-
-      (new BfgsSolver()).minimize(temp);
-      double newZ = func_eval(temp);
-      
-      if (newZ < Z) {
-        //println(String.format("refine z: %g < %g - GOOD", newZ, oldZ));
-        Z = newZ;
-        improved = true;
-      } else {
-        // println(String.format("refine z: %g < %g - BAD", newZ, oldZ));
-        temp = old_temp; // reset
-      }
-    }
- // }
-  
-  y.c = temp.c;
-  y.p = temp.p;*/
+  bfgs.minimize(y);
 }
-
-/*
-// ------------------------------------------------------
-// runs an optimization algorithm BFGS to minimize area function
-void refine(Config y) {
-  
-  (new BfgsSolver()).minimize(y);
-  
-  // try to swap every rect orientation & check if it's better
-  double oldZ = func_eval(y);
-  boolean improved = true;
-  
-  while(improved) {
-    improved = false;  
-    
-    for (int i=0; i<y.p.length; i++) {
-      int old_p = y.p[i];
-      y.p[i] = 1-old_p;
-      
-      double newZ = func_eval(y);
-      if (newZ < oldZ) {
-        oldZ = newZ;
-        improved = true;
-      } else {
-        y.p[i] = old_p;
-      }
-    }
-  }
-}
-*/
 
 // ------------------------------------------------------
 Config perturb(Config x) {
-  // TODO: use other techniques
   Config newX = x.make_copy();
   cont1(newX);//cont2(newX, 0.2 * sqrt(a*a+b*b));
   comb2(newX, 0.15);
@@ -125,8 +65,6 @@ Config solve(Config Xk) {
   double Z = func_eval(Xk);
   
   do {
-    Xprev = Xk;
-   
     Config Zk = perturb(Xk);
     refine(Zk);
     
@@ -159,11 +97,12 @@ void setup(){
   noFill();
   stroke(255,0,0);
   
-  c.load("data/data.txt");
-  float area = c.area();
+  c.load("data.txt");
+  double area = c.area();
   println(String.format("area: %g, upper N bound: %d", area, (int)Math.floor(area/(a*b))));
   
   state = ranGen(numRects);
+  init_bfgs_bounds(state.c.length);
 }
 
 void draw() {
