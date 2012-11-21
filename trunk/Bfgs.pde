@@ -1,4 +1,4 @@
-import lbfgsb.Minimizer;
+//import lbfgsb.Minimizer;
 
 class ContinuousDiff implements DifferentiableFunction {
   
@@ -40,18 +40,22 @@ static List<Bound> bounds = null;
 class BfgsSolver {
  
   public void minimize(Config x) {
-      try {
+      {//try {
         //int n = x.c.length; // only rect centers, p - fixed
         Minimizer mini = new Minimizer();
         //mini.setNoBounds(n);  // solve unbounded
         mini.setBounds(bounds);        
         mini.setIterationFinishedListener(new BfgsListener());
-                 
-        Result result = mini.run(new ContinuousDiff(x), x.c);
+         Result result = null;   
+        try {     
+        result = mini.run(new ContinuousDiff(x), x.c);
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
         x.c = result.point;
-      } catch (LBFGSBException ex) {
-        println(ex);
-      }
+      }// catch (LBFGSBException ex) {
+       // println(ex);
+     // }
   }
 }
 
