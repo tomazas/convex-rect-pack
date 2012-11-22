@@ -10,12 +10,11 @@ class Stat {
 
 final Stat stats = new Stat();
 final Container c = new Container();
-final int a = 20;
+final int a = 40;
 final int b = 20;
 final int maxNoImp = 100;
 Config state = null;
-final int numRects = 50;
-
+final int numRects = 30;
 
 // ------------------------------------------------------
 // generate randomly placed boxes inside the container area
@@ -42,16 +41,48 @@ Config ranGen(int total) {
 BfgsSolver bfgs = new BfgsSolver();
 
 // runs an optimization algorithm BFGS to minimize area function
-void refine(Config y) {
-  bfgs.minimize(y);
+double refine(Config y) {
+  return bfgs.minimize(y);
 }
 
 // ------------------------------------------------------
 Config perturb(Config x) {
   Config newX = x.make_copy();
-  cont1(newX);//cont2(newX, 0.2 * sqrt(a*a+b*b));
-  comb2(newX, 0.15);
+  cont2(newX, 0.2 * sqrt(sqr(a)+sqr(b)));
+  if (a!=b) comb2(newX, 0.15);
   return newX;
+}
+
+// ------------------------------------------------------
+int READY = 0, WORKING = 1, STOP = 2;
+int packerState = READY;
+Runnable halt = null;
+
+// ------------------------------------------------------
+void runPacker() {
+  new Thread(new Runnable(){
+    public void run() {
+      packerState = WORKING;
+      long t0 = System.nanoTime();
+      state = solve(state);
+      float seconds = (System.nanoTime() - t0) * 1e-9f;
+      stats.put(seconds);
+      println("elapsed time: "+seconds + " seconds, average: " 
+          + stats.avrg() + " for " + stats.n + " tests");
+      packerState = READY;
+      halt.run();
+    }
+  }).start();
+}
+
+// ------------------------------------------------------
+void stopPacker() {
+  packerState = STOP;
+  while (packerState != READY) {
+    try {
+      Thread.sleep(100);
+    } catch (Exception e) {}
+  }
 }
 
 // ------------------------------------------------------
@@ -66,14 +97,17 @@ Config solve(Config Xk) {
   
   do {
     Config Zk = perturb(Xk);
-    refine(Zk);
+    double newZ = refine(Zk);
     
-    double newZ = func_eval(Zk);
     if (newZ < Z) {
       println(String.format("Iteration: %d > newZ: %g prevZ: %g - improved", step, newZ, Z));
       Xk = Zk;
       Z = newZ;
       noImp = 0;
+      
+      // show results
+      state = Xk; 
+      redraw();
     } else {
       noImp = noImp+1;
       println(String.format("Iteration: %d > newZ: %g prevZ: %g - no improvement, iters = %d", step, newZ, Z, noImp));
@@ -85,15 +119,16 @@ Config solve(Config Xk) {
     }
     
     step = step+1;
-  } while(noImp <= maxNoImp);
+  } while(noImp <= maxNoImp && packerState != STOP);
   
   println("solve loop exited");
-  
+ 
   return Xk;
 }
 
 void setup(){
   size(640, 480);
+  noLoop();
   noFill();
   stroke(255,0,0);
   
@@ -102,7 +137,9 @@ void setup(){
   println(String.format("area: %g, upper N bound: %d", area, (int)Math.floor(area/(a*b))));
   
   state = ranGen(numRects);
-  init_bfgs_bounds(state.c.length);
+  init_bfgs_bounds(numRects*2);
+  
+  setup_gui();
 }
 
 void draw() {
@@ -121,26 +158,81 @@ void draw() {
       ellipse((int)state.c[k], (int)state.c[k+1], 2, 2);
     }
   }
-  
-  // draw container bounding box
-  stroke(255,0,0);
-  rect(width-2*a, 2*b, a, b);
 }
 
-void mousePressed() {
-  // add interactivity
-  if (mouseButton == RIGHT) {
-    long t0 = System.nanoTime();
-    state = solve(state);
-    float seconds = (System.nanoTime() - t0) * 1e-9f;
-    stats.put(seconds);
-    println("elapsed time: "+seconds + " seconds, average: " + stats.avrg() + " for " + stats.n + " tests");
-  } else if (mouseButton == LEFT) {
-    state = ranGen(numRects);
-  }
-}
+import javax.swing.*;
+import java.awt.GridBagLayout;
+import java.awt.GridBagConstraints;
+import java.awt.Insets;  
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
 
-void mouseMoved() {
-  //Segment s = new Segment(new float[]{100,100,300,100}, 200,200);
- // println(s.pdist(mouseX, mouseY));
+        public static void newItem(java.awt.Container dest, JComponent comp, boolean newln, boolean autosz,
+                             int spX, int spY, float weightX, float weightY){
+            GridBagConstraints cons = new GridBagConstraints();
+            cons.insets = new Insets(spY, spX, spY, spX);
+            if(newln) cons.gridwidth = GridBagConstraints.REMAINDER; // end line
+            if(autosz) cons.fill = GridBagConstraints.BOTH; // autosize
+            cons.weightx = weightX;
+            cons.weighty = weightY;
+            dest.add(comp, cons);
+        }
+
+
+void setup_gui() {
+    JFrame f = new JFrame("Controls");
+    f.setLayout(new GridBagLayout());
+    f.setSize(250, 250);
+    f.setLocation(200,200);
+    f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    newItem(f, new JLabel("Rects:"), false, true, 5, 5, 0.25, 1); 
+    newItem(f, new JTextField(""+numRects), true, true, 5, 5, 1, 1);
+    newItem(f, new JLabel("a:"), false, true, 5, 5, 0.25, 1); 
+    newItem(f, new JTextField(""+a), true, true, 5, 5, 1, 1);
+    newItem(f, new JLabel("b:"), false, true, 5, 5, 0.25, 1); 
+    newItem(f, new JTextField(""+b), true, true, 5, 5, 1, 1);
+    newItem(f, new JLabel("maxIters:"), false, true, 5, 5, 0.25, 1); 
+    newItem(f, new JTextField(""+maxNoImp), true, true, 5, 5, 1, 1);
+    
+    final JButton bgen = new JButton("Generate");
+    bgen.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent evt) {
+        state = ranGen(numRects);
+        redraw();
+      }
+    });
+    newItem(f, bgen, true, true, 5, 5, 1, 1);
+    
+    final JButton bsolve = new JButton("Solve");
+    newItem(f, bsolve, false, true, 5, 5, 1, 1);
+        
+    final JButton bstop = new JButton("Stop");
+    bstop.setEnabled(false);
+    bstop.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent evt) {
+        stopPacker();
+        halt.run();
+      }
+    });
+    newItem(f, bstop, true, true, 5, 5, 1, 1);
+    
+    halt = new Runnable() {
+      public void run() {
+        println("halt executed");
+        bsolve.setEnabled(true);
+        bgen.setEnabled(true);
+        bstop.setEnabled(false);
+      }
+    };
+    
+    bsolve.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent evt) {
+        runPacker();
+        bsolve.setEnabled(false);
+        bgen.setEnabled(false);
+        bstop.setEnabled(true);
+      }
+    });
+    
+    f.setVisible(true);
 }
