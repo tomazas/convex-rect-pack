@@ -1,34 +1,15 @@
 
 class Segment {
  float x0, y0, x1, y1;
- float A, B, C, nx, ny, d;
+ float nx, ny, d;
   
  public Segment(float[] v, float cx, float cy){
    x0 = v[0]; y0 = v[1]; x1 = v[2]; y1 = v[3];
-   
-   nx = y1-y0;
-   ny = x0-x1;
-   float f = sqrt(nx*nx + ny*ny);
-   A = nx/f;
-   B = ny/f;
-   C = -A*x0-B*y0;
-   
-   if (fdist(cx, cy) > 0) {
-     A = -A; B = -B; C = -C;
-     println(String.format("swap, now A: %g B: %g C: %g", A, B, C));
-   } else {
-     println(String.format("no swap, now A: %g B: %g C: %g", A, B, C));
-   }
-   
-   nx = x1-x0;
+   nx = x1-x0; 
    ny = y1-y0;
    d = sqrt(sqr(nx) + sqr(ny));
-   nx /= d;
+   nx /= d; 
    ny /= d;
- }
- 
- float fdist(float x, float y) {
-   return A*x+B*y+C;
  }
  
  float pdist(float x, float y) {
@@ -56,11 +37,8 @@ class Config {
   }
   public Config make_copy() {
     Config cp = new Config(p.length);
-    for (int i=0, k=0; i<p.length; i++, k+=2) {
-      cp.c[k]   = c[k];   // cx
-      cp.c[k+1] = c[k+1]; // cy
-      cp.p[i]   = p[i];
-    }
+    cp.c = c.clone();
+    cp.p = p.clone();
     return cp;
   }
 }
@@ -108,30 +86,8 @@ class Container {
   }
   
   boolean inside(float x, float y) {
-    return pointInPolygon(X, Y, x, y);
+    return pointInPolygon(x, y);
   }
-  
-  // evaluate all constraints for given point
-  /*float gk(float[] pts) {
-    //TODO: reimplement
-    float gsum = 0;
-    for (int i=0; i<segments.size(); i++) {
-      Segment s = segments.get(i);
-      for (int k=0; k<8; k+=2) {
-          float gval = s.fdist((float)pts[k], (float)pts[k+1]);
-          gsum += sqr(maxi(0.0, gval));
-      }
-    }
-    return gsum;
-  }*/
-  
-  /*float gk(float[] pts) {
-    float gsum = 0;
-    for (int k=0; k<8; k+=2) {
-          gsum += c.inside((float)pts[k], (float)pts[k+1]) ? 0 : 1;
-    }
-    return gsum;
-  }*/
   
   float gk(float[] pts) {
     float gsum = 0;
@@ -146,7 +102,7 @@ class Container {
         float d = segments.get(i).pdist(x,y);
         pmin = mini(pmin, d);
       }
-      gsum += sqr(pmin);//sqr(maxi(0.0, pmin));
+      gsum += sqr(pmin);
     }
     return gsum;
   }
@@ -179,17 +135,16 @@ class Container {
   }
 
   // implementation: http://alienryderflex.com/polygon/
-  boolean pointInPolygon(float[] pX, float[] pY, float x, float y) {
+  private boolean pointInPolygon(float x, float y) {
 
-    int      j = pX.length-1;
+    int      j = X.length-1;
     boolean  oddNodes = false;
     
-    //TODO: the denominator - (pY[j]-pY[i])*(pX[j]-pX[i]) can be precalculated in advance (static container)
-    //though it's only used in loading, so not much of a algorithm affector
+    //TODO: the denominator - can be precalculated in advance (static container)
 
-    for (int i=0; i<pX.length; i++) {
-      if ((pY[i] < y && pY[j] >= y || pY[j] < y && pY[i] >= y) &&  (pX[i] <= x || pX[j] <= x)) {
-        oddNodes ^= (pX[i]+(y-pY[i])/(pY[j]-pY[i])*(pX[j]-pX[i]) < x); 
+    for (int i=0; i<X.length; i++) {
+      if ((Y[i] < y && Y[j] >= y || Y[j] < y && Y[i] >= y) &&  (X[i] <= x || X[j] <= x)) {
+        oddNodes ^= (X[i]+(y-Y[i])/(Y[j]-Y[i])*(X[j]-X[i]) < x); 
       }
       j = i; 
     }
