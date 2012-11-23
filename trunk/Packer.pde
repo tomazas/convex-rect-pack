@@ -10,11 +10,11 @@ class Stat {
 
 final Stat stats = new Stat();
 final Container c = new Container();
-final int a = 40;
-final int b = 20;
-final int maxNoImp = 100;
+int a = 40;
+int b = 20;
+int maxNoImp = 100;
+int numRects = 30;
 Config state = null;
-final int numRects = 30;
 
 // ------------------------------------------------------
 // generate randomly placed boxes inside the container area
@@ -42,7 +42,17 @@ BfgsSolver bfgs = new BfgsSolver();
 
 // runs an optimization algorithm BFGS to minimize area function
 double refine(Config y) {
-  return bfgs.minimize(y);
+  float Z = (float)bfgs.minimize(y);
+  for(int i=0; i<y.p.length; i++) {
+    y.p[i] = 1-y.p[i];
+    float newZ = func_eval(y);
+    if (newZ < Z) {
+      Z = newZ;
+    } else {
+      y.p[i] = 1-y.p[i]; // restore old
+    }
+  }
+  return Z;
 }
 
 // ------------------------------------------------------
@@ -59,7 +69,19 @@ int packerState = READY;
 Runnable halt = null;
 
 // ------------------------------------------------------
-void runPacker() {
+boolean runPacker() {
+  maxNoImp = itersValue.getValue();
+  if (maxNoImp <= 0) {
+    JOptionPane.showMessageDialog(null, "maxIters > 0", 
+        "Alert", JOptionPane.ERROR_MESSAGE); 
+    return false;
+  }
+  int maxRects = (int)floor(c.area()/(a*b));
+  if (numRects > maxRects) {
+    JOptionPane.showMessageDialog(null, numRects + " rectangles don't fit in container area.\n"+
+        "Container area: " + c.area() + ", maximum: " + maxRects, 
+        "Alert", JOptionPane.ERROR_MESSAGE);
+  }
   new Thread(new Runnable(){
     public void run() {
       packerState = WORKING;
@@ -73,6 +95,7 @@ void runPacker() {
       halt.run();
     }
   }).start();
+  return true;
 }
 
 // ------------------------------------------------------
@@ -83,6 +106,33 @@ void stopPacker() {
       Thread.sleep(100);
     } catch (Exception e) {}
   }
+}
+
+// ------------------------------------------------------
+void resetPacker() {
+  int tempNumRects = rectsValue.getValue();
+  if (tempNumRects <= 0) {
+    JOptionPane.showMessageDialog(null, "numRects > 0", 
+        "Alert", JOptionPane.ERROR_MESSAGE); 
+    return;
+  }
+  int tempA = aValue.getValue();
+  if (tempA <= 0) {
+    JOptionPane.showMessageDialog(null, "a > 0", 
+        "Alert", JOptionPane.ERROR_MESSAGE); 
+    return;
+  }
+  int tempB = bValue.getValue();
+  if (tempB <= 0) {
+    JOptionPane.showMessageDialog(null, "b > 0", 
+        "Alert", JOptionPane.ERROR_MESSAGE); 
+    return;
+  }
+  numRects = tempNumRects;
+  a = tempA;
+  b = tempB;
+  state = ranGen(numRects);
+  init_bfgs_bounds(numRects*2);
 }
 
 // ------------------------------------------------------
@@ -126,113 +176,72 @@ Config solve(Config Xk) {
   return Xk;
 }
 
-void setup(){
+void setup() {
   size(640, 480);
   noLoop();
   noFill();
   stroke(255,0,0);
   
   c.load("data.txt");
-  double area = c.area();
-  println(String.format("area: %g, upper N bound: %d", area, (int)Math.floor(area/(a*b))));
-  
-  state = ranGen(numRects);
-  init_bfgs_bounds(numRects*2);
+  int maxRects = (int)floor(c.area()/(a*b));
+  println(String.format("container area: %g, maxRects: %d",c.area(), maxRects));
+  numRects = maxRects;
   
   setup_gui();
+  resetPacker();
 }
 
 void draw() {
   background(0xFFFFFF);
   c.paint();
   
+  float half_a = a/2;
+  float half_b = b/2;
+  
+  int numInside = 0;
+  
   if (state != null) {
     for (int i=0, k=0; i<state.p.length; i++, k+=2) {
       stroke(255,127,0);
-      if (state.p[i] == 0) {
-        rect((int)state.c[k]-a/2, (int)state.c[k+1]-b/2, a, b);
+      
+      int cx = (int)state.c[k];
+      int cy = (int)state.c[k+1];
+      int p = state.p[i];
+      int p_inv = 1-p;
+      float b_inv = half_b*p_inv;
+      float a_inv = half_a*p_inv;
+      float bp = half_b*p;
+      float ap = half_a*p;
+  
+      float[] pts = new float[] {
+        cx - a_inv - bp, cy - b_inv - ap,
+        cx + a_inv + bp, cy - b_inv - ap,
+        cx - a_inv - bp, cy + b_inv + ap,
+        cx + a_inv + bp, cy + b_inv + ap
+      };
+      
+      boolean in = true;
+      for(int j=0; j<4; j++) {
+        in &= c.inside(pts[j*2], pts[j*2+1]);
+      }
+      
+      // draw inside rects in yellow
+      if (in) {
+        fill(255,255,0,128);
+        numInside++;
       } else {
-        rect((int)state.c[k]-b/2, (int)state.c[k+1]-a/2, b, a);
+        noFill();
+      }
+    
+      if (state.p[i] == 0) {
+        rect(cx-a/2, cy-b/2, a, b);
+      } else {
+        rect(cx-b/2, cy-a/2, b, a);
       }
       stroke(255,0,0);
       ellipse((int)state.c[k], (int)state.c[k+1], 2, 2);
     }
   }
-}
-
-import javax.swing.*;
-import java.awt.GridBagLayout;
-import java.awt.GridBagConstraints;
-import java.awt.Insets;  
-import java.awt.event.ActionListener;
-import java.awt.event.ActionEvent;
-
-        public static void newItem(java.awt.Container dest, JComponent comp, boolean newln, boolean autosz,
-                             int spX, int spY, float weightX, float weightY){
-            GridBagConstraints cons = new GridBagConstraints();
-            cons.insets = new Insets(spY, spX, spY, spX);
-            if(newln) cons.gridwidth = GridBagConstraints.REMAINDER; // end line
-            if(autosz) cons.fill = GridBagConstraints.BOTH; // autosize
-            cons.weightx = weightX;
-            cons.weighty = weightY;
-            dest.add(comp, cons);
-        }
-
-
-void setup_gui() {
-    JFrame f = new JFrame("Controls");
-    f.setLayout(new GridBagLayout());
-    f.setSize(250, 250);
-    f.setLocation(200,200);
-    f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-    newItem(f, new JLabel("Rects:"), false, true, 5, 5, 0.25, 1); 
-    newItem(f, new JTextField(""+numRects), true, true, 5, 5, 1, 1);
-    newItem(f, new JLabel("a:"), false, true, 5, 5, 0.25, 1); 
-    newItem(f, new JTextField(""+a), true, true, 5, 5, 1, 1);
-    newItem(f, new JLabel("b:"), false, true, 5, 5, 0.25, 1); 
-    newItem(f, new JTextField(""+b), true, true, 5, 5, 1, 1);
-    newItem(f, new JLabel("maxIters:"), false, true, 5, 5, 0.25, 1); 
-    newItem(f, new JTextField(""+maxNoImp), true, true, 5, 5, 1, 1);
-    
-    final JButton bgen = new JButton("Generate");
-    bgen.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent evt) {
-        state = ranGen(numRects);
-        redraw();
-      }
-    });
-    newItem(f, bgen, true, true, 5, 5, 1, 1);
-    
-    final JButton bsolve = new JButton("Solve");
-    newItem(f, bsolve, false, true, 5, 5, 1, 1);
-        
-    final JButton bstop = new JButton("Stop");
-    bstop.setEnabled(false);
-    bstop.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent evt) {
-        stopPacker();
-        halt.run();
-      }
-    });
-    newItem(f, bstop, true, true, 5, 5, 1, 1);
-    
-    halt = new Runnable() {
-      public void run() {
-        println("halt executed");
-        bsolve.setEnabled(true);
-        bgen.setEnabled(true);
-        bstop.setEnabled(false);
-      }
-    };
-    
-    bsolve.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent evt) {
-        runPacker();
-        bsolve.setEnabled(false);
-        bgen.setEnabled(false);
-        bstop.setEnabled(true);
-      }
-    });
-    
-    f.setVisible(true);
+  
+  println("rects packed: "+numInside);
 }
