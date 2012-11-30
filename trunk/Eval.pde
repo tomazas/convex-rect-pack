@@ -12,19 +12,17 @@ float mini(float a, float b) {
 }
 
 float fx_ij(float ci_x, float p_i, float cj_x, float p_j) {
-  float dx = sqr(ci_x - cj_x);
-  float dp = sqr(a - (a-b)*(p_i + p_j)/2);
-  float delta = dx-dp;
-  if (delta < 0) return sqr(delta);
-  return 0;
+  float dx = abs(ci_x - cj_x);
+  float dp = abs(a - (a-b)*(p_i + p_j)/2);
+  float delta = dp-dx;
+  return sqr(max(0,delta));
 }
 
 float fy_ij(float ci_y, float p_i, float cj_y, float p_j) {
-  float dy = sqr(ci_y - cj_y);
-  float dp = sqr(b + (a-b)*(p_i + p_j)/2);
-  float delta = dy-dp;
-  if (delta < 0) return sqr(delta);
-  return 0;
+  float dy = abs(ci_y - cj_y);
+  float dp = abs(b + (a-b)*(p_i + p_j)/2);
+  float delta = dp-dy;
+  return sqr(max(0,delta)); 
 }
 
 // ------------------------------------------------------
