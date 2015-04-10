@@ -4,7 +4,8 @@
 
 #### Based on ideas described in paper: ####
 
-`"A heuristic approach for packing rectangles in convex regions" by Andrea Cassioli, Marco Locatelli (paper)`
+`"A heuristic approach for packing rectangles in convex regions" by Andrea Cassioli, Marco Locatelli"`
+([Paper](/docs/paper.pdf))
 
 ### Implementation details: ###
 
