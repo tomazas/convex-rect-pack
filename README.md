@@ -22,6 +22,8 @@
 
 Packing inside triangle
 
+`Note:` yellow color denotes elements fully inside the container
+
 ![Alt text](/img/pic1.png "Packing inside a triangle container")
 
 Packing inside custom shape #1
